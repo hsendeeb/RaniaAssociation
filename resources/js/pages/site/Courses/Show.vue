@@ -3,9 +3,10 @@ import Container from '@/components/site/Container.vue';
 import CourseCard from '@/components/site/CourseCard.vue';
 import StatusBadge from '@/components/site/StatusBadge.vue';
 import SiteLayout from '@/layouts/site/SiteLayout.vue';
-import type { Course, Enrollment } from '@/types/site';
+import type { Course, Enrollment, Lesson } from '@/types/site';
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, BookOpen, CalendarDays, Clock, GraduationCap, Layers, Lock, PlayCircle, UserCog, Users } from 'lucide-vue-next';
+import { ref } from 'vue';
 
 defineOptions({ layout: SiteLayout });
 
@@ -17,6 +18,61 @@ const props = defineProps<{
 }>();
 
 const paragraphs = (props.course.description ?? '').split('\n').filter((line) => line.trim().length > 0);
+
+const activeLessonId = ref<number | null>(null);
+
+function youtubeId(url: string | null): string | null {
+    if (!url) {
+        return null;
+    }
+
+    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([\w-]{11})/);
+
+    return match ? match[1] : null;
+}
+
+function youtubeStart(url: string | null): number | null {
+    const value = url?.match(/[?&]t=([0-9hms]+)/)?.[1];
+
+    if (!value) {
+        return null;
+    }
+
+    if (/^\d+$/.test(value)) {
+        return Number.parseInt(value, 10);
+    }
+
+    const hours = Number(value.match(/(\d+)h/)?.[1] ?? 0);
+    const minutes = Number(value.match(/(\d+)m/)?.[1] ?? 0);
+    const seconds = Number(value.match(/(\d+)s/)?.[1] ?? 0);
+    const total = hours * 3600 + minutes * 60 + seconds;
+
+    return total > 0 ? total : null;
+}
+
+function isYoutube(url: string | null): boolean {
+    return youtubeId(url) !== null;
+}
+
+function videoSrc(url: string | null): string {
+    const id = youtubeId(url);
+
+    if (!id) {
+        return url ?? '';
+    }
+
+    const start = youtubeStart(url);
+
+    return `https://www.youtube-nocookie.com/embed/${id}${start ? `?start=${start}` : ''}`;
+}
+
+function toggleLesson(lesson: Lesson): void {
+    if (!lesson.video_url) {
+        return;
+    }
+
+    activeLessonId.value = activeLessonId.value === lesson.id ? null : lesson.id;
+}
 </script>
 
 <template>
@@ -114,17 +170,53 @@ const paragraphs = (props.course.description ?? '').split('\n').filter((line) =>
                     <li
                         v-for="(lesson, index) in props.course.lessons"
                         :key="lesson.id"
-                        class="flex items-center gap-4 rounded-xl border border-border bg-card p-4"
+                        class="overflow-hidden rounded-xl border border-border bg-card"
                     >
-                        <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-sm font-bold text-brand-700">
-                            {{ index + 1 }}
-                        </span>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate font-medium text-foreground">{{ lesson.title }}</p>
-                            <p v-if="lesson.duration_minutes" class="mt-0.5 text-xs text-muted-foreground">{{ lesson.duration_minutes }} دقيقة</p>
+                        <button
+                            type="button"
+                            class="flex w-full items-center gap-4 p-4 text-start"
+                            :class="lesson.video_url ? 'transition hover:bg-muted/50' : 'cursor-default'"
+                            :disabled="!lesson.video_url"
+                            @click="toggleLesson(lesson)"
+                        >
+                            <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-sm font-bold text-brand-700">
+                                {{ index + 1 }}
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <p class="truncate font-medium text-foreground">{{ lesson.title }}</p>
+                                <p v-if="lesson.duration_minutes" class="mt-0.5 text-xs text-muted-foreground">{{ lesson.duration_minutes }} دقيقة</p>
+                            </div>
+                            <PlayCircle
+                                v-if="lesson.video_url"
+                                class="size-5 shrink-0 text-brand-500 transition"
+                                :class="activeLessonId === lesson.id ? 'rotate-90' : ''"
+                            />
+                            <Lock v-else class="size-4 shrink-0 text-muted-foreground/60" />
+                        </button>
+
+                        <div v-if="activeLessonId === lesson.id && lesson.video_url" class="border-t border-border bg-muted/30 p-4">
+                            <div v-if="isYoutube(lesson.video_url)" class="aspect-video w-full overflow-hidden rounded-lg bg-black">
+                                <iframe
+                                    :src="videoSrc(lesson.video_url)"
+                                    :title="lesson.title"
+                                    class="h-full w-full"
+                                    frameborder="0"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowfullscreen
+                                ></iframe>
+                            </div>
+                            <template v-else>
+                                <video :src="videoSrc(lesson.video_url)" controls class="w-full rounded-lg"></video>
+                                <a
+                                    :href="lesson.video_url"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800"
+                                >
+                                    فتح الفيديو في نافذة جديدة
+                                </a>
+                            </template>
                         </div>
-                        <PlayCircle v-if="lesson.video_url" class="size-5 shrink-0 text-brand-500" />
-                        <Lock v-else class="size-4 shrink-0 text-muted-foreground/60" />
                     </li>
                 </ol>
                 <p v-else class="rounded-xl border border-dashed border-border bg-card/50 p-6 text-center text-sm text-muted-foreground">
