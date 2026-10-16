@@ -70,6 +70,73 @@ Relationships: `Course` has many `Lesson` and `Enrollment`; `Student` and `Cours
 joined by `Enrollment` (unique per student + course). Statuses and levels are PHP enums
 in `app/Enums` (Arabic labels, Filament colors).
 
+## Design system — "أكاديمي رصين" (Emerald & Sand)
+
+The public site's personality is **professional, trustworthy, institutional**. It
+shares the emerald family with the Filament admin so the whole product feels like
+one brand.
+
+| Token            | Value                                   | Usage                          |
+| ---------------- | --------------------------------------- | ------------------------------ |
+| Primary          | emerald `#047857` (`--primary`)         | buttons, links, accents        |
+| Accent           | sand `--accent` / `bg-sand-50`          | soft section backgrounds       |
+| Highlight        | gold `--gold-400` (`#fbbf24`)           | "مميّزة" badges, minor accents |
+| Font             | **Tajawal** (400/500/700/800)           | all UI text                    |
+| Radius           | `--radius: 0.75rem`                     | cards, inputs, buttons         |
+| Brand scale      | `brand.50–950` in `tailwind.config.js`  | gradients, tints               |
+
+Semantic tokens live in `resources/css/app.css` (light + dark). Extra utility
+scales (`brand`, `sand`, `gold`), a centered `container`, and a `fade-up`
+animation are defined in `tailwind.config.js`. Layouts are mobile-first and
+responsive at the `sm` / `md` / `lg` breakpoints; RTL is driven by the locale.
+
+### Public routes
+
+| Route                          | Name                | Description                    |
+| ------------------------------ | ------------------- | ------------------------------ |
+| `/`                            | `home`              | Landing page                   |
+| `/courses`                     | `courses.index`     | Catalog with search + filters  |
+| `/courses/{course:slug}`       | `courses.show`      | Course detail + lessons        |
+| `/instructors`                 | `instructors.index` | Instructor directory           |
+| `/instructors/{instructor}`    | `instructors.show`  | Instructor profile + courses   |
+| `/about`                       | `about`             | About the association          |
+| `/contact`                     | `contact`           | Contact form (POST `contact.send`) |
+
+Only `published` courses and `active` instructors/categories are exposed publicly;
+unpublished records return a 404.
+
+### Student area (requires an account)
+
+| Route                                | Name                  | Description                     |
+| ------------------------------------ | --------------------- | ------------------------------- |
+| `/dashboard`                         | `dashboard`           | "لوحتي" — the student's courses |
+| `/courses/{course:slug}/enroll`      | `enrollments.create`  | Enrolment form                  |
+| `POST /courses/{course:slug}/enroll` | `enrollments.store`   | Submit a request (pending)      |
+| `DELETE /enrollments/{enrollment}`   | `enrollments.destroy` | Cancel a pending/active request |
+
+## Enrollment flow
+
+Account-based, with admin approval:
+
+1. On a course page, "سجّل في الدورة" links to the enrolment form. Guests are sent
+   to login and returned to the form afterwards (Laravel's `intended` URL).
+2. The form collects **name, email, phone** (prefilled from the account). Submitting
+   creates/updates the student's `Student` record and an `Enrollment` with status
+   **`قيد الانتظار` (pending)**.
+3. Admins review requests at **/admin/enrollments** — row and bulk actions **موافقة**
+   (→ `active`, sets `enrolled_at`) and **إلغاء** (→ `cancelled`).
+4. Students track everything on **لوحتي** (`/dashboard`): status badges, progress,
+   plus cancel and re-enrol actions.
+
+Rules enforced in `EnrollmentController` and `Course`:
+
+- One enrolment per student + course (duplicates are rejected with a flash message).
+- Capacity: `Course::hasAvailableSeats()` counts pending + active enrolments, so a
+  full course cannot be requested.
+- Cancelling keeps the row (status `cancelled`) and re-requesting revives it via
+  `updateOrCreate`, so the `(student_id, course_id)` unique index is never violated.
+- Students can only cancel their own enrolments (otherwise `403`).
+
 ## Project structure
 
 ```
@@ -82,13 +149,22 @@ app/
 │   ├── Instructors/
 │   ├── Students/
 │   └── Enrollments/
+├── Http/
+│   ├── Controllers/Site/         # Home, Course, Instructor, Page, Enrollment, Dashboard
+│   └── Resources/                # Course/Instructor/Category/Lesson/Enrollment resources
 ├── Models/                       # Domain models
 └── Providers/Filament/
     └── AdminPanelProvider.php    # Panel config: brand, RTL font, colors, nav groups
 
 lang/ar/                          # Arabic translations (validation, auth, ...)
-resources/js/                     # Inertia + Vue public app
-resources/views/app.blade.php     # Root view (dir="rtl")
+resources/
+├── css/app.css                   # Design tokens (light + dark)
+├── js/
+│   ├── components/site/          # SiteHeader/Footer, CourseCard, StatusBadge, ...
+│   ├── layouts/site/SiteLayout.vue
+│   ├── pages/Dashboard.vue       # "لوحتي" — the student area
+│   └── pages/site/               # Home, Courses/{Index,Show,Enroll}, Instructors/*, ...
+└── views/app.blade.php           # Root view (dir="rtl")
 ```
 
 Admin resources are grouped in the sidebar as **إدارة المحتوى** (content) and
@@ -107,14 +183,17 @@ php artisan serve                         # only if not using Herd
 
 ## Continuing the build (roadmap)
 
-1. **Public site (Inertia/Vue)** — replace the placeholder `Welcome` page with real
-   pages: home, courses index/show, instructors, about, contact.
-2. **Enrollment flow** — public registration → enrollment request → admin approval.
+1. ✅ **Public site (Inertia/Vue)** — done. Home, courses index/show, instructors,
+   about, and contact pages — Arabic/RTL, responsive, built on the design tokens below.
+2. ✅ **Enrollment flow** — done. Account-based enrolment: students register/log in,
+   request a course (status `pending`), the admin approves it in Filament, and the
+   student tracks it on **لوحتي**. See *Enrollment flow* below.
 3. **Roles & permissions** — `spatie/laravel-permission` (or a `role` column) to add
    editor/support roles alongside `is_admin`.
 4. **Media** — course covers and avatars use the `public` disk; consider a CDN/S3 driver
    for production.
-5. **Payments** — integrate a Saudi gateway (Moyasar/Tap/PayTabs) for paid courses.
+5. **Payments** — integrate a payment gateway that supports Lebanon (e.g. PayTabs,
+   Checkout.com) for paid courses.
 6. **Notifications** — email/SMS on enrollment and course updates.
 7. **Reports** — Filament widgets for enrollments, revenue, and popular courses.
 8. **Performance & prod** — `php artisan filament:cache-components`, `php artisan optimize`,
@@ -123,9 +202,15 @@ php artisan serve                         # only if not using Herd
 ## Notes
 
 - **MySQL later**: change `DB_CONNECTION=mysql` and the `DB_*` values in `.env`.
-- **Enrollment uniqueness**: `enrollments` has a unique constraint on
-  `(student_id, course_id)`. A duplicate from the admin form surfaces as a database
-  error — consider adding a form-level unique rule.
+- **Enrollment uniqueness**: the public flow guards duplicates and revives cancelled
+  rows via `updateOrCreate`. The **admin** form still surfaces the
+  `(student_id, course_id)` unique violation as a database error — consider adding a
+  form-level unique rule there.
+- **API resource wrapping**: `JsonResource::withoutWrapping()` is enabled in
+  `AppServiceProvider`. Inertia serialises resources through their `Responsable`
+  contract, which would otherwise nest props under `data`. Single resources and
+  plain collections are now flat; paginated collections still expose `data`,
+  `links`, and `meta`.
 - **RTL**: the direction is driven by the locale. Filament renders RTL automatically
   because `ar` is the app locale.
 - **PHP 8.5**: `config/database.php` selects the correct `PDO`/`Pdo\Mysql` SSL constant

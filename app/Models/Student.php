@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EnrollmentStatus;
 use App\Enums\Gender;
 use App\Enums\StudentStatus;
 use Database\Factories\StudentFactory;
@@ -70,5 +71,21 @@ class Student extends Model
         return $this->belongsToMany(Course::class, 'enrollments')
             ->withPivot(['status', 'progress', 'enrolled_at'])
             ->withTimestamps();
+    }
+
+    /**
+     * تسجيل الطالب في دورة محددة — يشمل الطلبات قيد الانتظار والنشطة والمكتملة،
+     * ويستثني التسجيلات الملغاة حتى يتمكّن الطالب من إعادة التسجيل.
+     */
+    public function enrollmentFor(Course $course): ?Enrollment
+    {
+        return $this->enrollments()
+            ->where('course_id', $course->getKey())
+            ->whereIn('status', [
+                EnrollmentStatus::Pending->value,
+                EnrollmentStatus::Active->value,
+                EnrollmentStatus::Completed->value,
+            ])
+            ->first();
     }
 }

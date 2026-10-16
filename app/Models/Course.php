@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CourseLevel;
 use App\Enums\CourseStatus;
+use App\Enums\EnrollmentStatus;
 use Database\Factories\CourseFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -110,5 +111,35 @@ class Course extends Model
     public function scopePublished(Builder $query): void
     {
         $query->where('status', CourseStatus::Published);
+    }
+
+    /**
+     * @param  Builder<Course>  $query
+     */
+    public function scopeFeatured(Builder $query): void
+    {
+        $query->where('is_featured', true);
+    }
+
+    /**
+     * هل ما زال هناك مقاعد متاحة في الدورة؟
+     *
+     * تُحتسب الطلبات قيد الانتظار والتسجيلات النشطة ضمن السعة، أما الملغاة
+     * فلا تشغل مقعدًا. الدورة بلا سعة محددة تُعدّ مفتوحة دائمًا.
+     */
+    public function hasAvailableSeats(): bool
+    {
+        if (blank($this->capacity)) {
+            return true;
+        }
+
+        $reserved = $this->enrollments()
+            ->whereIn('status', [
+                EnrollmentStatus::Pending->value,
+                EnrollmentStatus::Active->value,
+            ])
+            ->count();
+
+        return $reserved < $this->capacity;
     }
 }

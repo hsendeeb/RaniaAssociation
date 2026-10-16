@@ -6,6 +6,11 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#047857">
+        <meta
+            name="description"
+            content="جمعية رانيا — منصة تعليمية تقدّم دورات وبرامج تدريبية معتمدة بإشراف نخبة من المدربين."
+        >
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 

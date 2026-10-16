@@ -31,4 +31,12 @@ enum EnrollmentStatus: string implements HasColor, HasLabel
             self::Cancelled => 'danger',
         };
     }
+
+    /**
+     * هل يمكن للطالب إلغاء التسجيل في هذه الحالة؟
+     */
+    public function isCancellable(): bool
+    {
+        return in_array($this, [self::Pending, self::Active], true);
+    }
 }

@@ -43,7 +43,7 @@ class CoursesTable
                     ->badge(),
                 TextColumn::make('price')
                     ->label('السعر')
-                    ->money('SAR')
+                    ->money('USD')
                     ->sortable(),
                 TextColumn::make('lessons_count')
                     ->label('الدروس')
