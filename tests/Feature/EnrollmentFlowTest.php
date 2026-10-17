@@ -34,6 +34,8 @@ class EnrollmentFlowTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('site/Courses/Enroll')
                 ->where('defaults.email', $user->email)
+                ->where('defaults.phone_country', 'LB')
+                ->has('countries')
             );
     }
 
@@ -46,6 +48,7 @@ class EnrollmentFlowTest extends TestCase
             ->post(route('enrollments.store', $course->slug), [
                 'name' => 'منى العبدالله',
                 'email' => 'mona@example.com',
+                'phone_country' => 'LB',
                 'phone' => '0522222222',
             ])
             ->assertRedirect(route('dashboard'))
@@ -54,7 +57,9 @@ class EnrollmentFlowTest extends TestCase
         $this->assertDatabaseHas('students', [
             'user_id' => $user->id,
             'name' => 'منى العبدالله',
-            'phone' => '0522222222',
+            // يُخزَّن الرقم بصيغة E.164 الموحّدة.
+            'phone' => '+961522222222',
+            'phone_country' => 'LB',
         ]);
 
         $this->assertDatabaseHas('enrollments', [
@@ -70,26 +75,70 @@ class EnrollmentFlowTest extends TestCase
 
         $this->actingAs($user)
             ->post(route('enrollments.store', $course->slug), [])
-            ->assertSessionHasErrors(['name', 'email', 'phone']);
+            ->assertSessionHasErrors(['name', 'email', 'phone_country', 'phone']);
     }
 
     public function test_student_phone_number_must_be_unique(): void
     {
-        Student::factory()->create(['phone' => '0599999999']);
+        Student::factory()->create(['phone' => '71994952']);
 
         $user = User::factory()->create();
         $course = Course::factory()->published()->create();
 
+        // صيغة مختلفة لنفس الرقم يجب أن تُرفض أيضًا.
         $this->actingAs($user)
             ->from(route('enrollments.create', $course->slug))
             ->post(route('enrollments.store', $course->slug), [
                 'name' => 'هدى',
                 'email' => 'huda@example.com',
-                'phone' => '0599999999',
+                'phone_country' => 'LB',
+                'phone' => '+961 71 994 952',
             ])
             ->assertSessionHasErrors('phone');
 
         $this->assertDatabaseCount('students', 1);
+    }
+
+    public function test_student_phone_number_is_stored_in_e164(): void
+    {
+        $user = User::factory()->create();
+        $course = Course::factory()->published()->create();
+
+        $this->actingAs($user)
+            ->post(route('enrollments.store', $course->slug), [
+                'name' => 'هدى',
+                'email' => 'huda@example.com',
+                'phone_country' => 'LB',
+                'phone' => '71 994 952',
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseHas('students', [
+            'user_id' => $user->id,
+            'phone' => '+96171994952',
+            'phone_country' => 'LB',
+        ]);
+    }
+
+    public function test_foreign_phone_numbers_are_stored_with_their_country_code(): void
+    {
+        $user = User::factory()->create();
+        $course = Course::factory()->published()->create();
+
+        $this->actingAs($user)
+            ->post(route('enrollments.store', $course->slug), [
+                'name' => 'Jane',
+                'email' => 'jane@example.com',
+                'phone_country' => 'GB',
+                'phone' => '07911 123456',
+            ])
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertDatabaseHas('students', [
+            'user_id' => $user->id,
+            'phone' => '+447911123456',
+            'phone_country' => 'GB',
+        ]);
     }
 
     public function test_duplicate_enrollments_are_blocked(): void
@@ -97,7 +146,7 @@ class EnrollmentFlowTest extends TestCase
         $user = User::factory()->create();
         $course = Course::factory()->published()->create();
 
-        $payload = ['name' => 'أحمد', 'email' => 'ahmed@example.com', 'phone' => '0500000000'];
+        $payload = ['name' => 'أحمد', 'email' => 'ahmed@example.com', 'phone_country' => 'LB', 'phone' => '0500000000'];
 
         $this->actingAs($user)->post(route('enrollments.store', $course->slug), $payload);
 
@@ -125,6 +174,7 @@ class EnrollmentFlowTest extends TestCase
             ->post(route('enrollments.store', $course->slug), [
                 'name' => 'سارة',
                 'email' => 'sara@example.com',
+                'phone_country' => 'LB',
                 'phone' => '0511111111',
             ])
             ->assertSessionHas('error');
@@ -195,6 +245,7 @@ class EnrollmentFlowTest extends TestCase
             ->post(route('enrollments.store', $course->slug), [
                 'name' => 'علي',
                 'email' => 'ali@example.com',
+                'phone_country' => 'LB',
                 'phone' => '0533333333',
             ])
             ->assertRedirect(route('dashboard'));

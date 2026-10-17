@@ -11,6 +11,8 @@ use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Student;
 use App\Models\User;
+use App\Rules\UniqueStudentPhone;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -44,10 +46,12 @@ class EnrollmentController extends Controller
             'course' => new CourseResource(
                 $course->load(['category', 'instructor'])->loadCount('lessons'),
             ),
+            'countries' => PhoneNumber::options(),
             'defaults' => [
                 'name' => $student?->name ?? $request->user()->name,
                 'email' => $student?->email ?? $request->user()->email,
-                'phone' => $student?->phone ?? '',
+                'phone_country' => $student?->phone_country ?? PhoneNumber::defaultCountry(),
+                'phone' => PhoneNumber::national($student?->phone) ?? '',
             ],
         ]);
     }
@@ -59,17 +63,30 @@ class EnrollmentController extends Controller
     {
         abort_unless($course->status === CourseStatus::Published, 404);
 
-        $request->merge(['phone' => trim((string) $request->input('phone'))]);
+        // حوّل رقم الهاتف إلى صيغة E.164 الموحّدة اعتمادًا على الدولة المختارة
+        // حتى يتطابق مع القيم المخزّنة عند التحقّق من التفرّد.
+        $country = $request->input('phone_country');
+        $phone = $request->input('phone');
+
+        $request->merge([
+            'phone' => is_string($phone) && is_string($country)
+                ? PhoneNumber::toE164($phone, $country)
+                : null,
+        ]);
 
         $existingStudent = $this->existingStudent($request->user());
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
+            'phone_country' => ['required', 'string', Rule::in(PhoneNumber::countryCodes())],
             'phone' => [
-                'required', 'string', 'max:30',
-                Rule::unique('students', 'phone')->ignore($existingStudent?->id),
+                'required', 'string', 'max:20',
+                'regex:/^\+[1-9]\d{6,14}$/',
+                new UniqueStudentPhone(is_string($country) ? $country : null, $existingStudent?->id),
             ],
+        ], [
+            'phone.regex' => 'رقم الهاتف غير صالح.',
         ]);
 
         if ($this->studentFor($request->user())?->enrollmentFor($course)) {
@@ -141,7 +158,7 @@ class EnrollmentController extends Controller
     /**
      * إيجاد ملف الطالب أو إنشاؤه، مع ربط أي ملف يتيم بنفس البريد الإلكتروني.
      *
-     * @param  array{name: string, email: string, phone: string}  $data
+     * @param  array{name: string, email: string, phone: string, phone_country: string}  $data
      */
     protected function resolveStudent(User $user, array $data): Student
     {
@@ -151,6 +168,7 @@ class EnrollmentController extends Controller
             'user_id' => $user->id,
             'name' => $data['name'],
             'email' => $data['email'],
+            'phone_country' => $data['phone_country'],
             'phone' => $data['phone'],
             'status' => $student->status ?? StudentStatus::Active,
         ])->save();

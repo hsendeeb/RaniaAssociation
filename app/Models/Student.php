@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\EnrollmentStatus;
 use App\Enums\Gender;
 use App\Enums\StudentStatus;
+use App\Support\PhoneNumber;
 use Database\Factories\StudentFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,7 @@ class Student extends Model
         'name',
         'email',
         'phone',
+        'phone_country',
         'birth_date',
         'gender',
         'guardian_name',
@@ -47,15 +49,23 @@ class Student extends Model
     }
 
     /**
-     * Store a blank phone as NULL so the unique index only applies to real
-     * numbers (a unique column ignores NULL values).
+     * تخزين رقم الهاتف بصيغة E.164 الموحّدة (‎+96171994952‎) اعتمادًا على
+     * الدولة المختارة، وتحويل القيم الفارغة إلى NULL.
      *
      * @return Attribute<string|null, string|null>
      */
     protected function phone(): Attribute
     {
         return Attribute::make(
-            set: fn (?string $value): ?string => filled($value) ? $value : null,
+            set: function (?string $value): ?string {
+                $e164 = PhoneNumber::toE164($value, $this->attributes['phone_country'] ?? null);
+
+                if ($e164 !== null && blank($this->attributes['phone_country'] ?? null)) {
+                    $this->attributes['phone_country'] = PhoneNumber::countryFor($e164);
+                }
+
+                return $e164;
+            },
         );
     }
 

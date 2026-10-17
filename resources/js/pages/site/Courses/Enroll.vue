@@ -4,20 +4,29 @@ import SiteLayout from '@/layouts/site/SiteLayout.vue';
 import type { Course } from '@/types/site';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, BookOpen, CalendarDays, Clock, GraduationCap, Layers, ShieldCheck, UserCog } from 'lucide-vue-next';
+import { computed } from 'vue';
 import { route } from 'ziggy-js';
 
 defineOptions({ layout: SiteLayout });
 
+type CountryOption = { code: string; name: string; dial: string };
+
 const props = defineProps<{
     course: Course;
-    defaults: { name: string; email: string; phone: string };
+    countries: CountryOption[];
+    defaults: { name: string; email: string; phone: string; phone_country: string };
 }>();
 
 const form = useForm({
     name: props.defaults.name,
     email: props.defaults.email,
+    phone_country: props.defaults.phone_country,
     phone: props.defaults.phone,
 });
+
+const selectedDial = computed(
+    () => props.countries.find((country) => country.code === form.phone_country)?.dial ?? '',
+);
 
 function submit(): void {
     form.post(route('enrollments.store', props.course.slug));
@@ -67,30 +76,55 @@ function submit(): void {
                     <p v-if="form.errors.name" class="mt-1.5 text-xs text-destructive">{{ form.errors.name }}</p>
                 </div>
 
-                <div class="grid gap-5 sm:grid-cols-2">
+                <div>
+                    <label for="email" class="mb-1.5 block text-sm font-medium text-foreground">البريد الإلكتروني</label>
+                    <input
+                        id="email"
+                        v-model="form.email"
+                        type="email"
+                        dir="ltr"
+                        class="w-full rounded-xl border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:ring-brand-500"
+                        placeholder="you@example.com"
+                    />
+                    <p v-if="form.errors.email" class="mt-1.5 text-xs text-destructive">{{ form.errors.email }}</p>
+                </div>
+
+                <div class="grid gap-5 sm:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
                     <div>
-                        <label for="email" class="mb-1.5 block text-sm font-medium text-foreground">البريد الإلكتروني</label>
-                        <input
-                            id="email"
-                            v-model="form.email"
-                            type="email"
-                            dir="ltr"
-                            class="w-full rounded-xl border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:ring-brand-500"
-                            placeholder="you@example.com"
-                        />
-                        <p v-if="form.errors.email" class="mt-1.5 text-xs text-destructive">{{ form.errors.email }}</p>
+                        <label for="phone_country" class="mb-1.5 block text-sm font-medium text-foreground">الدولة</label>
+                        <select
+                            id="phone_country"
+                            v-model="form.phone_country"
+                            class="w-full rounded-xl border-border bg-background px-4 py-2.5 text-sm text-foreground focus:border-brand-500 focus:ring-brand-500"
+                        >
+                            <option v-for="country in props.countries" :key="country.code" :value="country.code">
+                                {{ country.name }} (+{{ country.dial }})
+                            </option>
+                        </select>
+                        <p v-if="form.errors.phone_country" class="mt-1.5 text-xs text-destructive">{{ form.errors.phone_country }}</p>
                     </div>
                     <div>
                         <label for="phone" class="mb-1.5 block text-sm font-medium text-foreground">رقم الجوال</label>
-                        <input
-                            id="phone"
-                            v-model="form.phone"
-                            type="tel"
-                            dir="ltr"
-                            class="w-full rounded-xl border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-brand-500 focus:ring-brand-500"
-                            placeholder="+961 3x xxx xxx"
-                        />
+                        <div
+                            class="flex items-stretch overflow-hidden rounded-xl border border-border bg-background focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500"
+                        >
+                            <span
+                                dir="ltr"
+                                class="flex select-none items-center border-e border-border bg-muted/50 px-3 text-sm font-medium text-muted-foreground"
+                            >
+                                +{{ selectedDial }}
+                            </span>
+                            <input
+                                id="phone"
+                                v-model="form.phone"
+                                type="tel"
+                                dir="ltr"
+                                class="w-full border-0 bg-transparent px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+                                placeholder="71 994952"
+                            />
+                        </div>
                         <p v-if="form.errors.phone" class="mt-1.5 text-xs text-destructive">{{ form.errors.phone }}</p>
+                        <p class="mt-1.5 text-xs text-muted-foreground">أدخل الرقم دون رمز الدولة.</p>
                     </div>
                 </div>
 

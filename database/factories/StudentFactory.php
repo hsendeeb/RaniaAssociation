@@ -23,6 +23,7 @@ class StudentFactory extends Factory
             'user_id' => null,
             'name' => $this->faker->name(),
             'email' => $this->faker->unique()->safeEmail(),
+            'phone_country' => 'LB',
             'phone' => $this->faker->numerify('05########'),
             'birth_date' => $this->faker->dateTimeBetween('-25 years', '-6 years'),
             'gender' => $this->faker->randomElement(Gender::cases()),
