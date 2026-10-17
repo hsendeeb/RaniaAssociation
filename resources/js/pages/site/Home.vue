@@ -7,7 +7,7 @@ import SectionHeading from '@/components/site/SectionHeading.vue';
 import SiteLayout from '@/layouts/site/SiteLayout.vue';
 import type { Category, Course, Instructor } from '@/types/site';
 import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpen, GraduationCap, Layers, ShieldCheck, Sparkles, UserCog, Users } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, Layers, ShieldCheck, Sparkles, UserCog, Users } from 'lucide-vue-next';
 
 defineOptions({ layout: SiteLayout });
 
@@ -65,14 +65,8 @@ const statCards = [
                 </div>
 
                 <div class="relative hidden lg:block">
-                    <div
-                        class="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-brand-700 via-brand-800 to-brand-900 p-10 shadow-xl"
-                    >
-                        <GraduationCap class="size-40 text-white/10" />
-                        <div class="absolute inset-x-10 bottom-10">
-                            <p class="text-2xl font-bold text-white">تعلّم بثقة</p>
-                            <p class="mt-1 text-sm text-white/70">تجربة تعليمية متكاملة من التسجيل حتى الإنجاز.</p>
-                        </div>
+                    <div class="relative aspect-[4/3] overflow-hidden rounded-3xl border border-border bg-card shadow-xl">
+                        <img src="/images/hero.png" alt="جمعية رانيا" class="h-full w-full object-cover" />
                     </div>
                     <div class="absolute -bottom-6 -start-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-lg">
                         <span class="flex size-11 items-center justify-center rounded-xl bg-gold-100 text-gold-600">

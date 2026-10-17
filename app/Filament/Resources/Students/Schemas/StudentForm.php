@@ -34,7 +34,8 @@ class StudentForm
                         TextInput::make('phone')
                             ->label('رقم الهاتف')
                             ->tel()
-                            ->maxLength(50),
+                            ->maxLength(50)
+                            ->unique(ignoreRecord: true),
                         DatePicker::make('birth_date')
                             ->label('تاريخ الميلاد')
                             ->maxDate(now()),

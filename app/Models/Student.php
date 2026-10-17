@@ -6,6 +6,7 @@ use App\Enums\EnrollmentStatus;
 use App\Enums\Gender;
 use App\Enums\StudentStatus;
 use Database\Factories\StudentFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -43,6 +44,19 @@ class Student extends Model
             'gender' => Gender::class,
             'status' => StudentStatus::class,
         ];
+    }
+
+    /**
+     * Store a blank phone as NULL so the unique index only applies to real
+     * numbers (a unique column ignores NULL values).
+     *
+     * @return Attribute<string|null, string|null>
+     */
+    protected function phone(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value): ?string => filled($value) ? $value : null,
+        );
     }
 
     /**

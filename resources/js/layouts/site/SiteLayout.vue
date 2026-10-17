@@ -8,6 +8,10 @@ import { computed, ref, watch } from 'vue';
 const page = usePage();
 const toastVisible = ref(false);
 
+// The student dashboard ("لوحتي") has its own logout action at the bottom,
+// so the marketing footer is omitted there.
+const showFooter = computed(() => page.component !== 'Dashboard');
+
 const errorMessage = computed(() => page.props.flash?.error ?? null);
 const successMessage = computed(() => page.props.flash?.success ?? null);
 const message = computed(() => successMessage.value ?? errorMessage.value);
@@ -35,7 +39,7 @@ watch(
             <slot />
         </main>
 
-        <SiteFooter />
+        <SiteFooter v-if="showFooter" />
 
         <Transition
             enter-active-class="transition duration-300 ease-out"

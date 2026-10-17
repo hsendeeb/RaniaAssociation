@@ -1,8 +1,17 @@
 <script setup lang="ts">
 import Container from '@/components/site/Container.vue';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useInitials } from '@/composables/useInitials';
 import type { User } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { GraduationCap, LayoutDashboard, Menu, X } from 'lucide-vue-next';
+import { ChevronDown, LayoutDashboard, LogOut, Menu, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 const page = usePage();
@@ -19,6 +28,8 @@ const navItems = [
 const currentPath = computed(() => page.url.split('?')[0]);
 const user = computed(() => (page.props.auth?.user as User | null) ?? null);
 
+const { getInitials } = useInitials();
+
 function isActive(path: string): boolean {
     return path === '/' ? currentPath.value === '/' : currentPath.value.startsWith(path);
 }
@@ -29,11 +40,11 @@ function isActive(path: string): boolean {
         <Container>
             <div class="flex h-16 items-center justify-between gap-4 lg:h-20">
                 <Link :href="route('home')" class="flex items-center gap-2.5" @click="open = false">
-                    <span
-                        class="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white shadow-sm"
-                    >
-                        <GraduationCap class="size-5" />
-                    </span>
+                    <img
+                        src="/images/logo.jpeg"
+                        alt="جمعية رانيا"
+                        class="size-10 shrink-0 rounded-xl object-cover"
+                    />
                     <span class="flex flex-col leading-none">
                         <span class="text-base font-extrabold text-foreground">جمعية رانيا</span>
                         <span class="mt-1 text-xs text-muted-foreground">منصة تعليمية</span>
@@ -53,22 +64,45 @@ function isActive(path: string): boolean {
                 </nav>
 
                 <div class="hidden items-center gap-2 lg:flex">
+                    <DropdownMenu v-if="user">
+                        <DropdownMenuTrigger as-child>
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 rounded-full border border-border bg-card py-1 pe-3 ps-1 text-sm font-medium text-foreground transition hover:border-brand-300"
+                            >
+                                <Avatar class="size-8 shrink-0 overflow-hidden rounded-full">
+                                    <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
+                                    <AvatarFallback class="bg-brand-100 text-xs font-semibold text-brand-700">
+                                        {{ getInitials(user.name) }}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <span class="max-w-32 truncate">{{ user.name }}</span>
+                                <ChevronDown class="size-4 text-muted-foreground" />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" class="w-52">
+                            <DropdownMenuItem :as-child="true">
+                                <Link :href="route('dashboard')" class="flex w-full items-center gap-2">
+                                    <LayoutDashboard class="size-4" />
+                                    لوحتي
+                                </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem :as-child="true">
+                                <Link method="post" :href="route('logout')" as="button" class="flex w-full items-center gap-2">
+                                    <LogOut class="size-4" />
+                                    تسجيل خروج
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <Link
-                        v-if="user"
-                        :href="route('dashboard')"
-                        class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                        v-else
+                        :href="route('login')"
+                        class="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     >
-                        <LayoutDashboard class="size-4" />
-                        لوحتي
+                        تسجيل الدخول
                     </Link>
-                    <template v-else>
-                        <Link
-                            :href="route('login')"
-                            class="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                        >
-                            تسجيل الدخول
-                        </Link>
-                    </template>
                     <Link
                         :href="route('courses.index')"
                         class="inline-flex items-center rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-800"
@@ -112,15 +146,28 @@ function isActive(path: string): boolean {
                     </nav>
 
                     <div class="mt-3 grid gap-2">
-                        <Link
-                            v-if="user"
-                            :href="route('dashboard')"
-                            class="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-brand-300 hover:text-brand-700"
-                            @click="open = false"
-                        >
-                            <LayoutDashboard class="size-4" />
-                            لوحتي
-                        </Link>
+                        <template v-if="user">
+                            <div class="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2.5">
+                                <Avatar class="size-9 shrink-0 overflow-hidden rounded-full">
+                                    <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
+                                    <AvatarFallback class="bg-brand-100 text-xs font-semibold text-brand-700">
+                                        {{ getInitials(user.name) }}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-semibold text-foreground">{{ user.name }}</p>
+                                    <p class="truncate text-xs text-muted-foreground">{{ user.email }}</p>
+                                </div>
+                            </div>
+                            <Link
+                                :href="route('dashboard')"
+                                class="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-brand-300 hover:text-brand-700"
+                                @click="open = false"
+                            >
+                                <LayoutDashboard class="size-4" />
+                                لوحتي
+                            </Link>
+                        </template>
                         <template v-else>
                             <Link
                                 :href="route('login')"
@@ -143,6 +190,17 @@ function isActive(path: string): boolean {
                             @click="open = false"
                         >
                             تصفّح الدورات
+                        </Link>
+                        <Link
+                            v-if="user"
+                            method="post"
+                            :href="route('logout')"
+                            as="button"
+                            class="flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-muted-foreground transition hover:border-destructive/40 hover:text-destructive"
+                            @click="open = false"
+                        >
+                            <LogOut class="size-4" />
+                            تسجيل خروج
                         </Link>
                     </div>
                 </Container>

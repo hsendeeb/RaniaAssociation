@@ -13,6 +13,7 @@ use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -58,10 +59,17 @@ class EnrollmentController extends Controller
     {
         abort_unless($course->status === CourseStatus::Published, 404);
 
+        $request->merge(['phone' => trim((string) $request->input('phone'))]);
+
+        $existingStudent = $this->existingStudent($request->user());
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
-            'phone' => ['required', 'string', 'max:30'],
+            'phone' => [
+                'required', 'string', 'max:30',
+                Rule::unique('students', 'phone')->ignore($existingStudent?->id),
+            ],
         ]);
 
         if ($this->studentFor($request->user())?->enrollmentFor($course)) {
@@ -121,15 +129,23 @@ class EnrollmentController extends Controller
     }
 
     /**
+     * ملف الطالب الذي سيُحدَّث عند التسجيل: الملف المرتبط بالحساب، أو ملف يتيم
+     * بنفس البريد الإلكتروني قبل ربطه بالحساب.
+     */
+    protected function existingStudent(User $user): ?Student
+    {
+        return $this->studentFor($user)
+            ?? Student::query()->whereNull('user_id')->where('email', $user->email)->first();
+    }
+
+    /**
      * إيجاد ملف الطالب أو إنشاؤه، مع ربط أي ملف يتيم بنفس البريد الإلكتروني.
      *
      * @param  array{name: string, email: string, phone: string}  $data
      */
     protected function resolveStudent(User $user, array $data): Student
     {
-        $student = $this->studentFor($user)
-            ?? Student::query()->whereNull('user_id')->where('email', $user->email)->first()
-            ?? new Student;
+        $student = $this->existingStudent($user) ?? new Student;
 
         $student->fill([
             'user_id' => $user->id,

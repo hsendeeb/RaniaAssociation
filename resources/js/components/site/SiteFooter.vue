@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import Container from '@/components/site/Container.vue';
 import { Link } from '@inertiajs/vue3';
-import { GraduationCap, Mail, MapPin, Phone } from 'lucide-vue-next';
+import { Mail, MapPin, Phone } from 'lucide-vue-next';
 
 const year = new Date().getFullYear();
 
@@ -20,9 +20,11 @@ const quickLinks = [
             <div class="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
                 <div class="lg:col-span-2">
                     <div class="flex items-center gap-2.5">
-                        <span class="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white">
-                            <GraduationCap class="size-5" />
-                        </span>
+                        <img
+                            src="/images/logo.jpeg"
+                            alt="جمعية رانيا"
+                            class="size-10 shrink-0 rounded-xl object-cover"
+                        />
                         <span class="text-lg font-extrabold text-foreground">جمعية رانيا</span>
                     </div>
                     <p class="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">

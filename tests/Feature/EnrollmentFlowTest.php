@@ -73,6 +73,25 @@ class EnrollmentFlowTest extends TestCase
             ->assertSessionHasErrors(['name', 'email', 'phone']);
     }
 
+    public function test_student_phone_number_must_be_unique(): void
+    {
+        Student::factory()->create(['phone' => '0599999999']);
+
+        $user = User::factory()->create();
+        $course = Course::factory()->published()->create();
+
+        $this->actingAs($user)
+            ->from(route('enrollments.create', $course->slug))
+            ->post(route('enrollments.store', $course->slug), [
+                'name' => 'هدى',
+                'email' => 'huda@example.com',
+                'phone' => '0599999999',
+            ])
+            ->assertSessionHasErrors('phone');
+
+        $this->assertDatabaseCount('students', 1);
+    }
+
     public function test_duplicate_enrollments_are_blocked(): void
     {
         $user = User::factory()->create();

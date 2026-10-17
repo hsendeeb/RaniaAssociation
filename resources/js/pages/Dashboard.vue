@@ -5,7 +5,7 @@ import StatusBadge from '@/components/site/StatusBadge.vue';
 import SiteLayout from '@/layouts/site/SiteLayout.vue';
 import type { Enrollment, EnrollmentStats } from '@/types/site';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpen, CheckCircle2, Clock, GraduationCap, LayoutDashboard, Trash2, UserCog } from 'lucide-vue-next';
+import { ArrowLeft, BookOpen, CheckCircle2, Clock, GraduationCap, LayoutDashboard, LogOut, Trash2, UserCog } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { route } from 'ziggy-js';
 
@@ -173,5 +173,18 @@ function cancel(enrollment: Enrollment): void {
                 <ArrowLeft class="size-4" />
             </Link>
         </EmptyState>
+
+        <!-- Logout: full width at the bottom on mobile, bottom-left on lg and up -->
+        <div class="mt-12 flex border-t border-border pt-6 lg:justify-end">
+            <Link
+                method="post"
+                :href="route('logout')"
+                as="button"
+                class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-5 py-3 text-sm font-semibold text-muted-foreground transition hover:border-destructive/40 hover:text-destructive lg:w-auto"
+            >
+                <LogOut class="size-4" />
+                تسجيل خروج
+            </Link>
+        </div>
     </Container>
 </template>
