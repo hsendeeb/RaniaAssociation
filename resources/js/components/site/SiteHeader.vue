@@ -68,7 +68,7 @@ function isActive(path: string): boolean {
                         <DropdownMenuTrigger as-child>
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-2 rounded-full border border-border bg-card py-1 pe-3 ps-1 text-sm font-medium text-foreground transition hover:border-brand-300"
+                                class="inline-flex items-center gap-2 rounded-full border border-border bg-card py-1 pe-3 ps-1 text-sm font-medium text-foreground transition hover:border-brand-300 focus-visible:outline-none"
                             >
                                 <Avatar class="size-8 shrink-0 overflow-hidden rounded-full">
                                     <AvatarImage v-if="user.avatar" :src="user.avatar" :alt="user.name" />
@@ -102,12 +102,6 @@ function isActive(path: string): boolean {
                         class="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
                     >
                         تسجيل الدخول
-                    </Link>
-                    <Link
-                        :href="route('courses.index')"
-                        class="inline-flex items-center rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-800"
-                    >
-                        تصفّح الدورات
                     </Link>
                 </div>
 
@@ -184,13 +178,6 @@ function isActive(path: string): boolean {
                                 حساب جديد
                             </Link>
                         </template>
-                        <Link
-                            :href="route('courses.index')"
-                            class="flex items-center justify-center rounded-lg bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-800"
-                            @click="open = false"
-                        >
-                            تصفّح الدورات
-                        </Link>
                         <Link
                             v-if="user"
                             method="post"
