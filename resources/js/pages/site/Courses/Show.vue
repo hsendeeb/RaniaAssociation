@@ -4,20 +4,42 @@ import CourseCard from '@/components/site/CourseCard.vue';
 import StatusBadge from '@/components/site/StatusBadge.vue';
 import SiteLayout from '@/layouts/site/SiteLayout.vue';
 import type { Course, Enrollment, Lesson } from '@/types/site';
-import { Head, Link } from '@inertiajs/vue3';
-import { ArrowLeft, BookOpen, CalendarDays, Clock, GraduationCap, Layers, Lock, PlayCircle, UserCog, Users } from 'lucide-vue-next';
-import { ref } from 'vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
+import { ArrowLeft, BookOpen, CalendarDays, Clock, GraduationCap, Layers, Lock, LogIn, Paperclip, PlayCircle, UserCog, Users } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 
 defineOptions({ layout: SiteLayout });
+
+const page = usePage();
 
 const props = defineProps<{
     course: Course;
     relatedCourses: Course[];
     availableSeats: boolean;
     enrollment: Enrollment | null;
+    canViewContent: boolean;
 }>();
 
 const paragraphs = (props.course.description ?? '').split('\n').filter((line) => line.trim().length > 0);
+
+const isGuest = computed(() => !page.props.auth?.user);
+
+const lessonsCount = computed(() => props.course.lessons_count ?? props.course.lessons?.length ?? 0);
+
+const isPendingRequest = computed(() => props.enrollment?.status.value === 'pending');
+
+/** نص الدرس بدون وسوم HTML (للتحقق من وجود محتوى فعلي). */
+function lessonText(content: string | null): string {
+    return (content ?? '').replace(/<[^>]*>/g, '').trim();
+}
+
+/**
+ * الدرس قابل للفتح إذا احتوى على فيديو أو نص أو مرفق.
+ * الدرس الذي لا يحتوي على أي منها فقط هو الذي يظهر مقفلًا.
+ */
+function hasLessonBody(lesson: Lesson): boolean {
+    return Boolean(lesson.video_url) || Boolean(lesson.attachment_url) || lessonText(lesson.content).length > 0;
+}
 
 const activeLessonId = ref<number | null>(null);
 
@@ -67,7 +89,7 @@ function videoSrc(url: string | null): string {
 }
 
 function toggleLesson(lesson: Lesson): void {
-    if (!lesson.video_url) {
+    if (!hasLessonBody(lesson)) {
         return;
     }
 
@@ -163,10 +185,63 @@ function toggleLesson(lesson: Lesson): void {
             <section>
                 <div class="mb-4 flex items-center justify-between">
                     <h2 class="text-xl font-bold text-foreground">محتوى الدورة</h2>
-                    <span class="text-sm text-muted-foreground">{{ props.course.lessons?.length ?? 0 }} درس</span>
+                    <span class="text-sm text-muted-foreground">{{ lessonsCount }} درس</span>
                 </div>
 
-                <ol v-if="props.course.lessons?.length" class="space-y-2.5">
+                <!-- المحتوى مقفل: يظهر فقط للطلاب الذين وافقت الإدارة على تسجيلهم -->
+                <div v-if="!props.canViewContent" class="rounded-2xl border border-dashed border-brand-200 bg-card p-10 text-center">
+                    <div class="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-brand-50">
+                        <Lock class="size-7 text-brand-700" />
+                    </div>
+
+                    <!-- طلب التسجيل قيد المراجعة -->
+                    <template v-if="isPendingRequest">
+                        <h3 class="text-lg font-bold text-foreground">طلب تسجيلك قيد المراجعة</h3>
+                        <p class="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                            سيُفتح محتوى الدورة تلقائيًا بعد موافقة الإدارة على طلبك، ويمكنك متابعة حالة الطلب من لوحتك.
+                        </p>
+                        <Link
+                            :href="route('dashboard')"
+                            class="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-800"
+                        >
+                            متابعة من لوحتي
+                            <ArrowLeft class="size-4" />
+                        </Link>
+                    </template>
+
+                    <!-- زائر أو طالب لم تُقبل طلبه بعد -->
+                    <template v-else>
+                        <h3 class="text-lg font-bold text-foreground">محتوى الدورة مقفل</h3>
+                        <p class="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                            يظهر محتوى الدورة للطلاب المقبولين فقط. سجّل في الدورة وسيُفتح المحتوى بعد موافقة الإدارة.
+                        </p>
+                        <Link
+                            v-if="props.availableSeats"
+                            :href="route('enrollments.create', props.course.slug)"
+                            class="mt-5 inline-flex items-center gap-2 rounded-xl bg-brand-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-brand-800"
+                        >
+                            سجّل في الدورة
+                            <ArrowLeft class="size-4" />
+                        </Link>
+                        <span
+                            v-else
+                            class="mt-5 inline-flex items-center rounded-xl bg-muted px-5 py-2.5 text-sm font-bold text-muted-foreground"
+                        >
+                            الدورة ممتلئة
+                        </span>
+                        <div v-if="isGuest" class="mt-3 flex items-center justify-center gap-3 text-xs text-muted-foreground">
+                            <Link :href="route('login')" class="font-semibold text-brand-700 hover:text-brand-800">
+                                تسجيل الدخول
+                            </Link>
+                            <span>•</span>
+                            <Link :href="route('register')" class="font-semibold text-brand-700 hover:text-brand-800">
+                                إنشاء حساب جديد
+                            </Link>
+                        </div>
+                    </template>
+                </div>
+
+                <ol v-else-if="props.course.lessons?.length" class="space-y-2.5">
                     <li
                         v-for="(lesson, index) in props.course.lessons"
                         :key="lesson.id"
@@ -175,8 +250,8 @@ function toggleLesson(lesson: Lesson): void {
                         <button
                             type="button"
                             class="flex w-full items-center gap-4 p-4 text-start"
-                            :class="lesson.video_url ? 'transition hover:bg-muted/50' : 'cursor-default'"
-                            :disabled="!lesson.video_url"
+                            :class="hasLessonBody(lesson) ? 'transition hover:bg-muted/50' : 'cursor-default'"
+                            :disabled="!hasLessonBody(lesson)"
                             @click="toggleLesson(lesson)"
                         >
                             <span class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-sm font-bold text-brand-700">
@@ -191,31 +266,51 @@ function toggleLesson(lesson: Lesson): void {
                                 class="size-5 shrink-0 text-brand-500 transition"
                                 :class="activeLessonId === lesson.id ? 'rotate-90' : ''"
                             />
+                            <Paperclip v-else-if="hasLessonBody(lesson)" class="size-4 shrink-0 text-brand-500" />
                             <Lock v-else class="size-4 shrink-0 text-muted-foreground/60" />
                         </button>
 
-                        <div v-if="activeLessonId === lesson.id && lesson.video_url" class="border-t border-border bg-muted/30 p-4">
-                            <div v-if="isYoutube(lesson.video_url)" class="aspect-video w-full overflow-hidden rounded-lg bg-black">
-                                <iframe
-                                    :src="videoSrc(lesson.video_url)"
-                                    :title="lesson.title"
-                                    class="h-full w-full"
-                                    frameborder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowfullscreen
-                                ></iframe>
+                        <div v-if="activeLessonId === lesson.id" class="space-y-4 border-t border-border bg-muted/30 p-4">
+                            <div v-if="lesson.video_url">
+                                <div v-if="isYoutube(lesson.video_url)" class="aspect-video w-full overflow-hidden rounded-lg bg-black">
+                                    <iframe
+                                        :src="videoSrc(lesson.video_url)"
+                                        :title="lesson.title"
+                                        class="h-full w-full"
+                                        frameborder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        allowfullscreen
+                                    ></iframe>
+                                </div>
+                                <template v-else>
+                                    <video :src="videoSrc(lesson.video_url)" controls class="w-full rounded-lg"></video>
+                                    <a
+                                        :href="lesson.video_url"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800"
+                                    >
+                                        فتح الفيديو في نافذة جديدة
+                                    </a>
+                                </template>
                             </div>
-                            <template v-else>
-                                <video :src="videoSrc(lesson.video_url)" controls class="w-full rounded-lg"></video>
-                                <a
-                                    :href="lesson.video_url"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-800"
-                                >
-                                    فتح الفيديو في نافذة جديدة
-                                </a>
-                            </template>
+
+                            <div
+                                v-if="lessonText(lesson.content)"
+                                class="lesson-content text-base leading-loose text-muted-foreground"
+                                v-html="lesson.content"
+                            ></div>
+
+                            <a
+                                v-if="lesson.attachment_url"
+                                :href="lesson.attachment_url"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-bold text-foreground transition hover:border-brand-300 hover:text-brand-700"
+                            >
+                                <Paperclip class="size-4 text-brand-500" />
+                                تحميل مرفق الدرس
+                            </a>
                         </div>
                     </li>
                 </ol>
@@ -354,3 +449,55 @@ function toggleLesson(lesson: Lesson): void {
         </Container>
     </section>
 </template>
+
+<style scoped>
+/* تنسيق محتوى الدروس الغني القادم من المحرر (Tailwind يُزيل التنسيقات الافتراضية). */
+.lesson-content :deep(h1),
+.lesson-content :deep(h2),
+.lesson-content :deep(h3) {
+    margin-block: 1rem 0.5rem;
+    font-weight: 700;
+    color: var(--foreground);
+}
+
+.lesson-content :deep(p) {
+    margin-block-end: 0.75rem;
+}
+
+.lesson-content :deep(ul) {
+    margin-block-end: 0.75rem;
+    list-style: disc;
+    padding-inline-start: 1.5rem;
+}
+
+.lesson-content :deep(ol) {
+    margin-block-end: 0.75rem;
+    list-style: decimal;
+    padding-inline-start: 1.5rem;
+}
+
+.lesson-content :deep(a) {
+    color: #047857;
+    text-decoration: underline;
+}
+
+.lesson-content :deep(img) {
+    margin-block: 0.75rem;
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.75rem;
+}
+
+.lesson-content :deep(code) {
+    border-radius: 0.375rem;
+    background-color: rgb(0 0 0 / 6%);
+    padding: 0.1rem 0.35rem;
+    font-size: 0.9em;
+}
+
+.lesson-content :deep(blockquote) {
+    margin-block-end: 0.75rem;
+    border-inline-start: 3px solid var(--border);
+    padding-inline-start: 0.75rem;
+}
+</style>

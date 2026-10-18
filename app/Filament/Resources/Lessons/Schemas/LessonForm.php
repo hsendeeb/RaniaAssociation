@@ -42,6 +42,8 @@ class LessonForm
                             ->maxLength(255),
                         FileUpload::make('attachment')
                             ->label('المرفق')
+                            ->disk('public')
+                            ->visibility('public')
                             ->directory('lessons'),
                     ]),
                 Section::make('الإعدادات')

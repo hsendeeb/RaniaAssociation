@@ -44,6 +44,8 @@ class InstructorForm
                     ->components([
                         FileUpload::make('avatar')
                             ->label('الصورة الشخصية')
+                            ->disk('public')
+                            ->visibility('public')
                             ->image()
                             ->directory('instructors')
                             ->imageEditor(),

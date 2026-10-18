@@ -21,7 +21,8 @@ class CoursesTable
         return $table
             ->columns([
                 ImageColumn::make('cover_image')
-                    ->label('الغلاف'),
+                    ->label('الغلاف')
+                    ->disk('public'),
                 TextColumn::make('title')
                     ->label('العنوان')
                     ->searchable()

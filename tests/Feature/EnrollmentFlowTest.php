@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Enums\EnrollmentStatus;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Models\Lesson;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -299,5 +301,120 @@ class EnrollmentFlowTest extends TestCase
         $this->get(route('courses.show', $course->slug))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('enrollment', null));
+    }
+
+    public function test_course_content_stays_locked_while_the_request_is_pending(): void
+    {
+        $user = User::factory()->create();
+        $student = Student::factory()->create(['user_id' => $user->id]);
+        $course = Course::factory()->published()->has(Lesson::factory()->count(2))->create();
+
+        Enrollment::factory()->create([
+            'student_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => EnrollmentStatus::Pending,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('courses.show', $course->slug))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('canViewContent', false)
+                ->missing('course.lessons')
+            );
+    }
+
+    public function test_course_content_stays_locked_after_cancellation(): void
+    {
+        $user = User::factory()->create();
+        $student = Student::factory()->create(['user_id' => $user->id]);
+        $course = Course::factory()->published()->has(Lesson::factory()->count(2))->create();
+
+        Enrollment::factory()->create([
+            'student_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => EnrollmentStatus::Cancelled,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('courses.show', $course->slug))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('canViewContent', false)
+                ->missing('course.lessons')
+            );
+    }
+
+    public function test_course_content_unlocks_once_the_enrollment_is_approved(): void
+    {
+        $user = User::factory()->create();
+        $student = Student::factory()->create(['user_id' => $user->id]);
+        $course = Course::factory()->published()->create();
+
+        Lesson::factory()->count(2)->create(['course_id' => $course->id]);
+        Lesson::factory()->create(['course_id' => $course->id, 'is_published' => false]);
+
+        Enrollment::factory()->create([
+            'student_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => EnrollmentStatus::Active,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('courses.show', $course->slug))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('canViewContent', true)
+                // الدروس المنشورة فقط، والدرس المسودة يُستثنى.
+                ->has('course.lessons', 2)
+            );
+    }
+
+    public function test_admins_can_preview_course_content(): void
+    {
+        $course = Course::factory()->published()->has(Lesson::factory()->count(2))->create();
+        $admin = User::factory()->create(['is_admin' => true]);
+
+        $this->actingAs($admin)
+            ->get(route('courses.show', $course->slug))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('canViewContent', true)
+                ->has('course.lessons', 2)
+            );
+    }
+
+    public function test_lessons_without_video_still_expose_text_and_attachments(): void
+    {
+        $user = User::factory()->create();
+        $student = Student::factory()->create(['user_id' => $user->id]);
+        $course = Course::factory()->published()->create();
+
+        // درس بلا فيديو: نص + مرفق فقط (الحالة التي كانت تظهر مقفلة خطأً).
+        Lesson::factory()->create([
+            'course_id' => $course->id,
+            'title' => 'Variables&Datatypes',
+            'video_url' => null,
+            'content' => '<p>المتغيرات وأنواع البيانات في لغة C</p>',
+            'attachment' => 'lessons/handout.docx',
+        ]);
+
+        Enrollment::factory()->create([
+            'student_id' => $student->id,
+            'course_id' => $course->id,
+            'status' => EnrollmentStatus::Active,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('courses.show', $course->slug))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('canViewContent', true)
+                ->has('course.lessons', 1)
+                ->where('course.lessons.0.video_url', null)
+                ->where('course.lessons.0.content', '<p>المتغيرات وأنواع البيانات في لغة C</p>')
+                ->where('course.lessons.0.attachment', 'lessons/handout.docx')
+                ->where('course.lessons.0.attachment_url', Storage::disk('public')->url('lessons/handout.docx'))
+            );
     }
 }

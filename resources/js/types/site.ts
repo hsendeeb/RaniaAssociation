@@ -17,6 +17,7 @@ export interface Lesson {
     content: string | null;
     video_url: string | null;
     attachment: string | null;
+    attachment_url: string | null;
     duration_minutes: number | null;
     position: number;
 }

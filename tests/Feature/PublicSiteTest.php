@@ -70,7 +70,7 @@ class PublicSiteTest extends TestCase
             );
     }
 
-    public function test_course_show_returns_published_courses_with_lessons(): void
+    public function test_course_show_hides_lessons_from_guests(): void
     {
         $course = Course::factory()->published()->has(Lesson::factory()->count(2))->create();
 
@@ -79,7 +79,10 @@ class PublicSiteTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('site/Courses/Show')
                 ->where('course.slug', $course->slug)
-                ->has('course.lessons', 2)
+                ->where('canViewContent', false)
+                // لا تُرسل الدروس إلى المتصفح إطلاقًا للزوار.
+                ->missing('course.lessons')
+                ->has('course')
             );
     }
 

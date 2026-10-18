@@ -31,49 +31,51 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthLayout title="Reset password" description="Please enter your new password below">
-        <Head title="Reset password" />
+    <AuthLayout title="إعادة تعيين كلمة المرور" description="يرجى إدخال كلمة المرور الجديدة أدناه">
+        <Head title="إعادة تعيين كلمة المرور" />
 
         <form @submit.prevent="submit">
             <div class="grid gap-6">
                 <div class="grid gap-2">
-                    <Label for="email">Email</Label>
-                    <Input id="email" type="email" name="email" autocomplete="email" v-model="form.email" class="mt-1 block w-full" readonly />
+                    <Label for="email">البريد الإلكتروني</Label>
+                    <Input id="email" type="email" dir="ltr" name="email" autocomplete="email" v-model="form.email" class="mt-1 block w-full" readonly />
                     <InputError :message="form.errors.email" class="mt-2" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password">Password</Label>
+                    <Label for="password">كلمة المرور</Label>
                     <Input
                         id="password"
                         type="password"
+                        dir="ltr"
                         name="password"
                         autocomplete="new-password"
                         v-model="form.password"
                         class="mt-1 block w-full"
                         autofocus
-                        placeholder="Password"
+                        placeholder="••••••••"
                     />
                     <InputError :message="form.errors.password" />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password_confirmation"> Confirm Password </Label>
+                    <Label for="password_confirmation">تأكيد كلمة المرور</Label>
                     <Input
                         id="password_confirmation"
                         type="password"
+                        dir="ltr"
                         name="password_confirmation"
                         autocomplete="new-password"
                         v-model="form.password_confirmation"
                         class="mt-1 block w-full"
-                        placeholder="Confirm password"
+                        placeholder="••••••••"
                     />
                     <InputError :message="form.errors.password_confirmation" />
                 </div>
 
                 <Button type="submit" class="mt-4 w-full" :disabled="form.processing">
                     <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
-                    Reset password
+                    إعادة تعيين كلمة المرور
                 </Button>
             </div>
         </form>

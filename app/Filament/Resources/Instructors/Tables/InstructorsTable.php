@@ -19,6 +19,7 @@ class InstructorsTable
             ->columns([
                 ImageColumn::make('avatar')
                     ->label('الصورة')
+                    ->disk('public')
                     ->circular(),
                 TextColumn::make('name')
                     ->label('الاسم')

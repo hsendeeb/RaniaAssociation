@@ -105,6 +105,23 @@ responsive at the `sm` / `md` / `lg` breakpoints; RTL is driven by the locale.
 Only `published` courses and `active` instructors/categories are exposed publicly;
 unpublished records return a 404.
 
+### Course content locking
+
+The course page shows info (title, summary, description, price, instructor, related
+courses) to everyone, but the **lessons and videos are locked**:
+
+- **Guests** see a locked card with log in / register prompts.
+- **Students** can view lesson content only after the admin approves their enrolment
+  (status `active`). Pending and cancelled requests stay locked, with a status notice.
+- **Free courses follow the same approval flow** — there is no auto-unlock for them.
+- Admins (`is_admin`) can preview any course's content for review purposes.
+- Lessons are never sent to the browser for unauthorised visitors — the controller
+  only loads the `lessons` relation when access is granted (`canViewContent`).
+
+A lesson's body can be a **video**, **rich-text content**, an **attachment**, or any
+combination. A lesson only shows as locked (🔒) when it has none of the three — the UI
+treats text and attachments as openable, so a text/handout-only lesson is never stuck.
+
 ### Student area (requires an account)
 
 | Route                                | Name                  | Description                     |
@@ -136,6 +153,8 @@ Rules enforced in `EnrollmentController` and `Course`:
 - Cancelling keeps the row (status `cancelled`) and re-requesting revives it via
   `updateOrCreate`, so the `(student_id, course_id)` unique index is never violated.
 - Students can only cancel their own enrolments (otherwise `403`).
+- Only students with an `active` enrolment can view a course's lessons — see
+  *Course content locking* above.
 
 ## Project structure
 
@@ -200,6 +219,17 @@ php artisan serve                         # only if not using Herd
    queue worker, and MySQL.
 
 ## Notes
+
+- **Course slugs** are generated automatically: the `title` field is `live(onBlur: true)`
+  and fills `slug` with Laravel's `Str::slug()` (Arabic is transliterated, e.g.
+  `دورة أساسيات الويب` → `dor-asasyat-aloyb`). The slug stays editable; on **edit** it is
+  only regenerated if it is empty, so live course URLs don't change silently.
+- **Uploads must use the `public` disk**: `FILESYSTEM_DISK=public` in `.env` (the default
+  in `.env.example`). Uploads made while it is set to `local` land in
+  `storage/app/private` and are **not** reachable from the site (`/storage/...` points at
+  `storage/app/public`), which shows up as broken images. Filament upload fields and image
+  columns are pinned to `->disk('public')` so they keep working regardless of the default.
+  Don't forget `php artisan storage:link` and `php artisan optimize:clear` after changing it.
 
 - **MySQL later**: change `DB_CONNECTION=mysql` and the `DB_*` values in `.env`.
 - **Enrollment uniqueness**: the public flow guards duplicates and revives cancelled

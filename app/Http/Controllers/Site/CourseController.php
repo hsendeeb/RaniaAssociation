@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Site;
 
 use App\Enums\CourseLevel;
 use App\Enums\CourseStatus;
+use App\Enums\EnrollmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CategoryResource;
 use App\Http\Resources\CourseResource;
@@ -63,11 +64,25 @@ class CourseController extends Controller
     {
         abort_unless($course->status === CourseStatus::Published, 404);
 
-        $course->load([
-            'category',
-            'instructor',
-            'lessons' => fn ($query) => $query->where('is_published', true),
-        ])->loadCount(['enrollments', 'students']);
+        $user = $request->user();
+
+        $enrollment = $user
+            ? Student::query()->whereBelongsTo($user)->first()?->enrollmentFor($course)
+            : null;
+
+        // محتوى الدورة مفتوح فقط لمن تمّت الموافقة على تسجيله (وللمشرفين للمعاينة).
+        $canViewContent = $enrollment?->status === EnrollmentStatus::Active
+            || (bool) $user?->is_admin;
+
+        $course->load(['category', 'instructor']);
+        $course->loadCount(['enrollments', 'students', 'lessons']);
+
+        // تُحمَّل الدروس فقط للمصرَّح لهم حتى لا تُرسل بياناتها إلى المتصفح إطلاقًا.
+        if ($canViewContent) {
+            $course->load([
+                'lessons' => fn ($query) => $query->where('is_published', true),
+            ]);
+        }
 
         $relatedCourses = Course::query()
             ->published()
@@ -79,15 +94,12 @@ class CourseController extends Controller
             ->take(3)
             ->get();
 
-        $enrollment = $request->user()
-            ? Student::query()->whereBelongsTo($request->user())->first()?->enrollmentFor($course)
-            : null;
-
         return Inertia::render('site/Courses/Show', [
             'course' => new CourseResource($course),
             'relatedCourses' => CourseResource::collection($relatedCourses),
             'availableSeats' => $course->hasAvailableSeats(),
             'enrollment' => $enrollment ? new EnrollmentResource($enrollment) : null,
+            'canViewContent' => $canViewContent,
         ]);
     }
 }

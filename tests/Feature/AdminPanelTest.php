@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\StudentStatus;
+use App\Filament\Resources\Courses\Pages\CreateCourse;
+use App\Filament\Resources\Courses\Pages\EditCourse;
 use App\Filament\Resources\Students\Pages\CreateStudent;
+use App\Models\Course;
 use App\Models\Student;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -95,6 +98,45 @@ class AdminPanelTest extends TestCase
             'name' => 'Jane',
             'phone' => '+33612345678',
             'phone_country' => 'FR',
+        ]);
+    }
+
+    public function test_course_slug_is_generated_from_the_title(): void
+    {
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        Livewire::actingAs($this->admin())
+            ->test(CreateCourse::class)
+            ->fillForm(['title' => 'دورة أساسيات الويب'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('courses', [
+            'title' => 'دورة أساسيات الويب',
+            // Str::slug يحرّف العربية إلى أحرف لاتينية ويفصل بالشرطات.
+            'slug' => 'dor-asasyat-aloyb',
+        ]);
+    }
+
+    public function test_editing_a_course_title_keeps_the_existing_slug(): void
+    {
+        Filament::setCurrentPanel(Filament::getPanel('admin'));
+
+        $course = Course::factory()->create([
+            'title' => 'Old title',
+            'slug' => 'stable-slug',
+        ]);
+
+        Livewire::actingAs($this->admin())
+            ->test(EditCourse::class, ['record' => $course->getRouteKey()])
+            ->fillForm(['title' => 'New title'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('courses', [
+            'id' => $course->id,
+            'title' => 'New title',
+            'slug' => 'stable-slug',
         ]);
     }
 }
